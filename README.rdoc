@@ -1,7 +1,156 @@
 = attr_bucket
 
-This is probably a horrible idea.
+Sometimes you're tempted to use STI in your Rails app, but your STI classes
+don't share all of the same attributes. So, you're left with two choices:
 
-== Copyright
+  1. Add _all_ of the columns your descendant classes will need.
+  2. Remember that this occurrence is a telltale sign that STI is the wrong
+     design pattern to be using...
+
+<b>OR IS IT?</b> Yes, it is. Probably.
+
+But wait! I present you with a third option:
+
+  3. Give your model a bucket. So it can hold all its extra attributes.
+
+Hoo boy. This is probably a horrible idea.
+
+== Usage
+
+Let's say we have a table containing animals. Animals have some universal traits,
+such as a number of legs. We want to be able to search on those. But they also have
+some specific traits that we'd like to display on the animal's detail page. We
+don't (and this part is important) care about searching on these traits, we just want
+to display them. OK, let's have at it:
+
+  class Animal < ActiveRecord::Base
+    # t.string  :type
+    # t.string  :name
+    # t.integer :number_of_legs
+    # t.boolean :can_fly
+    # t.boolean :is_cuddly
+    # t.text    :unique_traits
+  end
+
+We'll only track one unique attribute for birds, for now. This will be a string,
+because strings are the default type for attributes in a bucket.
+
+  class Bird < Animal
+    attr_bucket :unique_traits => :group_name # "Murder" of crows, for instance
+  end
+
+We might want to know "fresh" or "salt" for fish, (and whether they go best with
+rice or asparagus). These will also be strings.
+
+  class Fish < Animal
+    attr_bucket :unique_traits => [:best_served_with, :water_type]
+  end
+
+Now, we have a special animal that we want to add some non-string attributes to,
+so we'll define our bucket with a hash, instead:
+
+  class Lolrus < Animal
+    # Yes, this actually works. It's an alias. Come on, I had to.
+    i_has_a_bucket :unique_traits => {
+      :in_possession_of_bucket => :boolean, # Has it been stolen yet?
+      :tusk_length_in_inches   => :integer,
+      :also_known_as           => :string
+    }
+  end
+
+Now, we can create some animals. Let's start with a crow.
+
+  crow = Bird.create(
+    :name => 'Crow',
+    :number_of_legs => 2,
+    :can_fly => true,
+    :is_cuddly => false,
+    :group_name => 'Murder'
+  )
+  => #<Bird id: 1, type: "Bird", name: "Crow", ...>
+
+Looks about like we'd expect. Now we can retrieve our bucketed attributes by name,
+without worrying about the bucket they're in.
+
+  crow.group_name
+  => "Murder"
+
+Let's create a fish of some kind. How about a salmon?
+
+  salmon = Fish.create(
+    :name => 'Salmon',
+    :number_of_legs => 0,
+    :can_fly => false,
+    :is_cuddly => false,
+    :water_type => 'fresh',
+    :best_served_with => 'Pan-fried asparagus'
+  )
+  => #<Fish id: 3, type: "Fish", name: "Salmon", ...>
+
+As before, we can retrieve the bucketed attribute:
+
+  salmon.best_served_with
+  => "Pan-fried asparagus"
+
+We can also change the attribute using a standard attribute writer, so this works just
+fine with Rails forms.
+
+  salmon.best_served_with = 'A light red wine'
+  => "A light red wine"
+  salmon.save
+  => true
+
+Let's pull it back out of the database and make sure everything looks right:
+
+  fish = Fish.find 3
+  => #<Fish id: 3, type: "Fish", name: "Salmon", ...>
+  fish == salmon
+  => true
+
+And it maintained our updated attribute.
+
+  fish.best_served_with
+  => "A light red wine"
+
+Now let's try an animal with some typecasting -- I'll create using string values for
+the bucketed attributes since that's what a Rails form would send:
+
+  lolrus = Lolrus.create(
+    :name => 'The LOLRUS',
+    :number_of_legs => 0, # Do flippers count as legs?
+    :can_fly => false,
+    :is_cuddly => true,
+    :also_known_as => 'The Holder of the Bucket',
+    :in_possession_of_bucket => 't',
+    :tusk_length_in_inches => '6'
+  )
+  => #<Lolrus id: 5, type: "Lolrus", name: "The LOLRUS", ...>
+
+Let's make sure the attributes got cast to the proper type:
+
+  lolrus.tusk_length_in_inches
+  => 6
+  lolrus.in_possession_of_bucket
+  => true
+
+That lolrus looks to be in fine shape, indeed.
+
+== Caveats
+
+This whole thing's a caveat, really. If you're looking to do this, be absolutely,
+positively sure that you really want to bucket your attributes rather than inherit
+from an abstract class or something a bit, well, more sane.
+
+attr_bucket isn't for you if:
+
+  * You ever intend to search against your custom attributes
+  * You plan to instantiate tons of records at a time (the serialization overhead
+    will hurt -- though it'll hurt less with psych)
+  * You want to get invited to all the cool software engineer parties
+
+All that caveat-ing aside, give it a try, and let me know if you find a particularly
+clever use case!
+
+== Copyright (or blame, depending on how you look at it)
 
 Copyright (c) 2011 {Ernie Miller}[http://metautonomo.us]. See LICENSE for details.

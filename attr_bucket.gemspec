@@ -9,8 +9,8 @@ Gem::Specification.new do |s|
   s.authors     = ["Ernie Miller"]
   s.email       = ["ernie@metautonomo.us"]
   s.homepage    = "http://metautonomo.us"
-  s.summary     = %q{This is probably a horrible idea.}
-  s.description = %q{A really, really, horrible idea.}
+  s.summary     = %q{Your model can has a bucket (for its attributes).}
+  s.description = %q{Store a few extra (non-searchable) attributes away in a bucket. This is probably a horrible idea, but try it anyway.}
 
   s.add_runtime_dependency(%q<activerecord>, ["~> 3.0.0"])
 
