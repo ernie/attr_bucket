@@ -1,0 +1,7 @@
+= attr_bucket
+
+This is probably a horrible idea.
+
+== Copyright
+
+Copyright (c) 2011 {Ernie Miller}[http://metautonomo.us]. See LICENSE for details.
