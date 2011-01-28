@@ -55,9 +55,12 @@ so we'll define our bucket with a hash, instead:
     i_has_a_bucket :unique_traits => {
       :in_possession_of_bucket => :boolean, # Has it been stolen yet?
       :tusk_length_in_inches   => :integer,
-      :also_known_as           => :string
+      :also_known_as           => proc {|v| "aka #{v}"}
     }
   end
+
+Note the use of the proc on the value side of the hash for :also_known_as. You can
+supply any object that responds to +call+ for custom typecasting behavior.
 
 Now, we can create some animals. Let's start with a crow.
 
@@ -133,6 +136,8 @@ Let's make sure the attributes got cast to the proper type:
   => 6
   lolrus.in_possession_of_bucket
   => true
+  lolrus.also_known_as
+  => "aka The Holder of the Bucket"
 
 That lolrus looks to be in fine shape, indeed.
 
