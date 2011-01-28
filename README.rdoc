@@ -3,16 +3,16 @@
 Sometimes you're tempted to use STI in your Rails app, but your STI classes
 don't share all of the same attributes. So, you're left with two choices:
 
-*1.* Add _all_ of the columns your descendant classes will need.
+<b>1.</b> Add _all_ of the columns your descendant classes will need.
 
-*2.* Remember that this occurrence is a telltale sign that STI is the wrong
+<b>2.</b> Remember that this occurrence is a telltale sign that STI is the wrong
 design pattern to be using...
 
 <b>OR IS IT?</b> Yes, it is. Probably.
 
 But wait! I present you with a third option:
 
-*3.* Give your model a bucket. So it can hold all its extra attributes.
+<b>3.</b> Give your model a bucket. So it can hold all its extra attributes.
 
 Hoo boy. This is probably a horrible idea.
 
