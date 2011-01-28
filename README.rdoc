@@ -3,15 +3,16 @@
 Sometimes you're tempted to use STI in your Rails app, but your STI classes
 don't share all of the same attributes. So, you're left with two choices:
 
-  1. Add _all_ of the columns your descendant classes will need.
-  2. Remember that this occurrence is a telltale sign that STI is the wrong
-     design pattern to be using...
+*1.* Add _all_ of the columns your descendant classes will need.
+
+*2.* Remember that this occurrence is a telltale sign that STI is the wrong
+design pattern to be using...
 
 <b>OR IS IT?</b> Yes, it is. Probably.
 
 But wait! I present you with a third option:
 
-  3. Give your model a bucket. So it can hold all its extra attributes.
+*3.* Give your model a bucket. So it can hold all its extra attributes.
 
 Hoo boy. This is probably a horrible idea.
 
@@ -143,10 +144,10 @@ from an abstract class or something a bit, well, more sane.
 
 attr_bucket isn't for you if:
 
-  * You ever intend to search against your custom attributes
-  * You plan to instantiate tons of records at a time (the serialization overhead
-    will hurt -- though it'll hurt less with psych)
-  * You want to get invited to all the cool software engineer parties
+* You ever intend to search against your custom attributes
+* You plan to instantiate tons of records at a time (the serialization overhead
+  will hurt -- though it'll hurt less with psych)
+* You want to get invited to all the cool software engineer parties
 
 All that caveat-ing aside, give it a try, and let me know if you find a particularly
 clever use case!
