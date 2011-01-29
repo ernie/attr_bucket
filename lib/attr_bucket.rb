@@ -14,6 +14,22 @@ module AttrBucket
     read_attribute(name)
   end
 
+  def valid_class(value, type)
+    case type
+      when :integer       then Fixnum === value
+      when :float         then Float === value
+      when :decimal       then BigDecimal === value
+      when :datetime      then Time === value
+      when :date          then Date === value
+      when :timestamp     then Time === value
+      when :time          then Time === value
+      when :text, :string then String === value
+      when :binary        then String === value
+      when :boolean       then [TrueClass, FalseClass].grep value
+      else false
+    end
+  end
+
   # Swipe the nifty column typecasting from the column class
   # underlying the bucket column, or use the call method of
   # the object supplied for +type+ if it responds to call.
@@ -25,7 +41,7 @@ module AttrBucket
 
     return type.call(value) if type.respond_to?(:call)
 
-    case type
+    typecasted = case type
       when :string    then value.to_s
       when :text      then value.to_s
       when :integer   then value.to_i rescue value ? 1 : 0
@@ -39,6 +55,10 @@ module AttrBucket
       when :boolean   then column_class.value_to_boolean(value)
       else value
     end
+
+    raise ArgumentError, "Unable to typecast #{value} to #{type}" unless valid_class(typecasted, type)
+
+    typecasted
   end
 
   module ClassMethods
@@ -107,6 +127,7 @@ module AttrBucket
       define_method "#{attr_name}=" do |val|
         # TODO: Make this more resilient/granular for multiple bucketed changes
         send("#{bucket_name}_will_change!")
+        typecasted = explicitly_type_cast(val, attr_type, column_class)
         get_attr_bucket(bucket_name)[attr_name] = explicitly_type_cast(val, attr_type, column_class)
       end unless method_defined? "#{attr_name}="
     end
