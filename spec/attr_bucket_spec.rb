@@ -91,10 +91,16 @@ describe AttrBucket do
       @o.salary.should eq 50000.23
     end
 
-    it 'typecasts to Time for :datetime' do
+    it 'typecasts to Time for :datetime as string' do
       @o.hired_at = '2011-01-01 08:00:00'
       @o.hired_at.should be_a Time
       @o.hired_at.should eq Time.parse '2011-01-01 08:00:00'
+    end
+
+    it 'typecasts to Time for :datetime as array' do
+      @o.hired_at = [2011, 1, 1, 8, 0]
+      @o.hired_at.should be_a Time
+      @o.hired_at.should eq Time.local(2011, 1, 1, 8, 0)
     end
 
     it 'typecasts to Time for :timestamp' do
@@ -109,8 +115,14 @@ describe AttrBucket do
       @o.workday_starts_at.should eq Time.parse '2000-01-01 08:00:00'
     end
 
-    it 'typecasts to Date for :date in string format' do
+    it 'typecasts to Date for :date as string' do
       @o.birthday = '1977/8/29'
+      @o.birthday.should be_a Date
+      @o.birthday.should eq Date.new(1977, 8, 29)
+    end
+
+    it 'typecasts to Date for :date as array' do
+      @o.birthday = [1977,8,29]
       @o.birthday.should be_a Date
       @o.birthday.should eq Date.new(1977, 8, 29)
     end

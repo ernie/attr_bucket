@@ -1,6 +1,11 @@
 module AttrBucket
   def self.included(base) #:nodoc:
     base.extend ClassMethods
+    base.class_attribute :bucketed_attributes
+    base.bucketed_attributes = []
+    base.instance_eval do
+      alias_method_chain :assign_multiparameter_attributes, :attr_bucket
+    end
   end
 
   private
@@ -8,10 +13,10 @@ module AttrBucket
   # Retrieve the attribute bucket, or if it's not yet a Hash,
   # initialize it as one.
   def get_attr_bucket(name)
-    unless read_attribute(name).is_a?(Hash)
-      write_attribute(name, {})
+    unless self[name].is_a?(Hash)
+      self[name] = {}
     end
-    read_attribute(name)
+    self[name]
   end
 
   def valid_class(value, type)
@@ -28,6 +33,17 @@ module AttrBucket
       when :boolean       then [TrueClass, FalseClass].grep value
       else false
     end
+  end
+
+  # We have to override assign_multiparameter_attributes to catch
+  # dates/times for bucketed columns and handle them ourselves
+  # before passing the remainder on for ActiveRecord::Base to handle.
+  def assign_multiparameter_attributes_with_attr_bucket(pairs)
+    bucket_pairs = pairs.select {|p| self.class.bucketed_attributes.include?(p.first.split('(').first)}
+    extract_callstack_for_multiparameter_attributes(bucket_pairs).each do |name, value|
+      send(name + '=', value)
+    end
+    assign_multiparameter_attributes_without_attr_bucket(pairs - bucket_pairs)
   end
 
   # Swipe the nifty column typecasting from the column class
@@ -47,10 +63,10 @@ module AttrBucket
       when :integer   then value.to_i rescue value ? 1 : 0
       when :float     then value.to_f
       when :decimal   then column_class.value_to_decimal(value)
-      when :datetime  then column_class.string_to_time(value)
-      when :timestamp then column_class.string_to_time(value)
-      when :time      then column_class.string_to_dummy_time(value)
-      when :date      then column_class.string_to_date(value)
+      when :datetime  then cast_to_time(value, column_class)
+      when :timestamp then cast_to_time(value, column_class)
+      when :time      then cast_to_time(value, column_class, true)
+      when :date      then cast_to_date(value, column_class)
       when :binary    then column_class.binary_to_string(value)
       when :boolean   then column_class.value_to_boolean(value)
       else value
@@ -59,6 +75,27 @@ module AttrBucket
     raise ArgumentError, "Unable to typecast #{value} to #{type}" unless valid_class(typecasted, type)
 
     typecasted
+  end
+
+  def cast_to_date(value, column_class)
+    if value.is_a?(Array)
+      begin
+        values = value.collect { |v| v.nil? ? 1 : v }
+        Date.new(*values)
+      rescue ArgumentError => e
+        Time.time_with_datetime_fallback(self.class.default_timezone, *values).to_date
+      end
+    else
+      column_class.string_to_date(value)
+    end
+  end
+
+  def cast_to_time(value, column_class, dummy_time = false)
+    if value.is_a?(Array)
+      Time.time_with_datetime_fallback(self.class.default_timezone, *value)
+    else
+      dummy_time ? column_class.string_to_dummy_time(value) : column_class.string_to_time(value)
+    end
   end
 
   module ClassMethods
@@ -118,6 +155,7 @@ module AttrBucket
     alias :i_has_a_bucket :attr_bucket
 
     def define_bucket_reader(bucket_name, attr_name) #:nodoc:
+      self.bucketed_attributes += [attr_name.to_s]
       define_method attr_name do
         get_attr_bucket(bucket_name)[attr_name]
       end unless method_defined? attr_name
