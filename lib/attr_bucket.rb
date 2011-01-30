@@ -41,7 +41,7 @@ module AttrBucket
   def assign_multiparameter_attributes_with_attr_bucket(pairs)
     bucket_pairs = pairs.select {|p| self.class.bucketed_attributes.include?(p.first.split('(').first)}
     extract_callstack_for_multiparameter_attributes(bucket_pairs).each do |name, value|
-      send(name + '=', value)
+      send(name + '=', value.compact.empty? ? nil : value)
     end
     assign_multiparameter_attributes_without_attr_bucket(pairs - bucket_pairs)
   end
@@ -92,6 +92,7 @@ module AttrBucket
 
   def cast_to_time(value, column_class, dummy_time = false)
     if value.is_a?(Array)
+      value[0] ||= Date.today.year
       Time.time_with_datetime_fallback(self.class.default_timezone, *value)
     else
       dummy_time ? column_class.string_to_dummy_time(value) : column_class.string_to_time(value)
