@@ -103,6 +103,12 @@ describe AttrBucket do
       @o.hired_at.should eq Time.local(2011, 1, 1, 8, 0)
     end
 
+    it 'replaces a nil year with the current year in cast to Time' do
+      @o.hired_at = [nil, 1, 1, 8, 0]
+      @o.hired_at.should be_a Time
+      @o.hired_at.should eq Time.local(Date.today.year, 1, 1, 8, 0)
+    end
+
     it 'typecasts to Time for :timestamp' do
       @o.stamp = '2011-01-01 08:00:00'
       @o.stamp.should be_a Time
