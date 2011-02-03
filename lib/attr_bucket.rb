@@ -167,7 +167,7 @@ module AttrBucket
         # TODO: Make this more resilient/granular for multiple bucketed changes
         send("#{bucket_name}_will_change!")
         typecasted = explicitly_type_cast(val, attr_type, column_class)
-        get_attr_bucket(bucket_name)[attr_name] = explicitly_type_cast(val, attr_type, column_class)
+        get_attr_bucket(bucket_name)[attr_name] = typecasted
       end unless method_defined? "#{attr_name}="
     end
   end
