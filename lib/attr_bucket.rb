@@ -37,6 +37,8 @@ module AttrBucket
       self.bucketed_attributes = []
     end
 
+    return nil unless table_exists?
+
     opts.map do |bucket_name, attrs|
       bucket_column = self.columns_hash[bucket_name.to_s]
       unless bucket_column.type == :text
