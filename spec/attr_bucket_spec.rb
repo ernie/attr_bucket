@@ -19,6 +19,23 @@ describe AttrBucket do
       @o = an_object_with_bucket :bucket => :nickname
     end
 
+    it 'should have our anonymous module for its immediate ancestor' do
+      mod = @o.class.ancestors[1]
+      mod.instance_methods(false).should include :nickname
+    end
+
+    it 'should not have a nickname method in its class' do
+      @o.class.instance_methods(false).should_not include :nickname
+    end
+
+    it 'should be able to override methods and use super' do
+      @o.nickname = 'John'
+      def @o.nickname
+        "Jimmy #{super}"
+      end
+      @o.nickname.should eq 'Jimmy John'
+    end
+
     it 'should cast nickname to string' do
       @o.nickname = 42
       @o.nickname.should eq '42'

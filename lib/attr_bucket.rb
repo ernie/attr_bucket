@@ -32,9 +32,12 @@ module AttrBucket
   def attr_bucket(opts = {})
     unless include? InstanceMethods
       include InstanceMethods
-
-      class_attribute :bucketed_attributes
-      self.bucketed_attributes = []
+      class_attribute :_attr_bucketed_attributes
+      self._attr_bucketed_attributes = []
+      class_attribute :_attr_bucket_methods
+      # We define our methods on this module so we can override and super
+      self._attr_bucket_methods = Module.new
+      include self._attr_bucket_methods
     end
 
     return nil unless table_exists?
@@ -49,13 +52,11 @@ module AttrBucket
 
       if attrs.is_a?(Hash)
         attrs.map do|attr_name, attr_type|
-          define_bucket_reader bucket_name, attr_name
-          define_bucket_writer bucket_name, attr_name, attr_type, bucket_column.class
+          _define_bucket bucket_name, attr_name, attr_type, bucket_column.class
         end
       else
         Array.wrap(attrs).each do |attr_name|
-          define_bucket_reader bucket_name, attr_name
-          define_bucket_writer bucket_name, attr_name, :string, bucket_column.class
+          _define_bucket bucket_name, attr_name, :string, bucket_column.class
         end
       end
     end
@@ -63,33 +64,28 @@ module AttrBucket
 
   alias :i_has_a_bucket :attr_bucket
 
-  def define_bucket_reader(bucket_name, attr_name) #:nodoc:
-    self.bucketed_attributes += [attr_name.to_s]
-    define_method attr_name do
-      get_attr_bucket(bucket_name)[attr_name]
-    end unless method_defined? attr_name
-  end
+  def _define_bucket(bucket_name, attr_name, attr_type, column_class)
+    self._attr_bucketed_attributes |= [attr_name.to_s]
 
-  def define_bucket_writer(bucket_name, attr_name, attr_type, column_class) #:nodoc:
-    define_method "#{attr_name}=" do |val|
-      # TODO: Make this more resilient/granular for multiple bucketed changes
-      send("#{bucket_name}_will_change!")
-      typecasted = explicitly_type_cast(val, attr_type, column_class)
-      get_attr_bucket(bucket_name)[attr_name] = typecasted
-    end unless method_defined? "#{attr_name}="
+    self._attr_bucket_methods.class_eval do
+      define_method attr_name do
+        _get_bucket(bucket_name)[attr_name]
+      end
+
+      define_method "#{attr_name}=" do |val|
+        send "#{bucket_name}_will_change!"
+        typecasted = _explicitly_type_cast(val, attr_type, column_class)
+        _get_bucket(bucket_name)[attr_name] = typecasted
+      end
+    end
   end
 
   module InstanceMethods
-    # Retrieve the attribute bucket, or if it's not yet a Hash,
-    # initialize it as one.
-    def get_attr_bucket(name)
-      unless self[name].is_a?(Hash)
-        self[name] = {}
-      end
-      self[name]
+    def _get_bucket(bucket_name)
+      self[bucket_name] ||= {}
     end
 
-    def valid_class(value, type)
+    def _valid_class?(value, type)
       case type
         when :integer       then Fixnum === value
         when :float         then Float === value
@@ -109,7 +105,7 @@ module AttrBucket
     # dates/times for bucketed columns and handle them ourselves
     # before passing the remainder on for ActiveRecord::Base to handle.
     def assign_multiparameter_attributes(pairs)
-      bucket_pairs = pairs.select {|p| self.class.bucketed_attributes.include?(p.first.split('(').first)}
+      bucket_pairs = pairs.select {|p| self.class._attr_bucketed_attributes.include?(p.first.split('(').first)}
       extract_callstack_for_multiparameter_attributes(bucket_pairs).each do |name, value|
         send(name + '=', value.compact.empty? ? nil : value)
       end
@@ -122,7 +118,7 @@ module AttrBucket
     #
     # This allows custom typecasting by supplying a proc, etc
     # as the value side of the hash in an attr_bucket definition.
-    def explicitly_type_cast(value, type, column_class)
+    def _explicitly_type_cast(value, type, column_class)
       return nil if value.nil?
 
       return type.call(value) if type.respond_to?(:call)
@@ -133,21 +129,21 @@ module AttrBucket
         when :integer   then value.to_i rescue value ? 1 : 0
         when :float     then value.to_f
         when :decimal   then column_class.value_to_decimal(value)
-        when :datetime  then cast_to_time(value, column_class)
-        when :timestamp then cast_to_time(value, column_class)
-        when :time      then cast_to_time(value, column_class, true)
-        when :date      then cast_to_date(value, column_class)
+        when :datetime  then _cast_to_time(value, column_class)
+        when :timestamp then _cast_to_time(value, column_class)
+        when :time      then _cast_to_time(value, column_class, true)
+        when :date      then _cast_to_date(value, column_class)
         when :binary    then column_class.binary_to_string(value)
         when :boolean   then column_class.value_to_boolean(value)
         else value
       end
 
-      raise ArgumentError, "Unable to typecast #{value} to #{type}" unless valid_class(typecasted, type)
+      raise ArgumentError, "Unable to typecast #{value} to #{type}" unless _valid_class?(typecasted, type)
 
       typecasted
     end
 
-    def cast_to_date(value, column_class)
+    def _cast_to_date(value, column_class)
       if value.is_a?(Array)
         begin
           values = value.collect { |v| v.nil? ? 1 : v }
@@ -160,7 +156,7 @@ module AttrBucket
       end
     end
 
-    def cast_to_time(value, column_class, dummy_time = false)
+    def _cast_to_time(value, column_class, dummy_time = false)
       if value.is_a?(Array)
         value[0] ||= Date.today.year
         Time.time_with_datetime_fallback(self.class.default_timezone, *value)
